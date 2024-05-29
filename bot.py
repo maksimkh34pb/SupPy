@@ -14,7 +14,5 @@ def init(token):
     # Telegram
     application = ApplicationBuilder().token(token).build()
 
-    start_handler = CommandHandler('start', start)
-    application.add_handler(start_handler)
-
+    log.logger.log("Bot starting... ", log.MsgType.info, 'Bot')
     application.run_polling()

@@ -1,6 +1,7 @@
 import datetime
 import enum
 import inspect
+import traceback
 from typing import TextIO
 
 
@@ -29,6 +30,19 @@ class MsgTypeColor:
     green = '\033[32m'
 
 
+def get_traceback():
+    lines = []
+    result = []
+
+    for line in traceback.format_stack():
+        if line.__contains__('SupPy'):
+            if not line.__contains__('<module>'):
+                lines.append(line)
+
+    for line in lines:
+        result.append(line.split('\n  ')[0].split('in ')[-1])
+    return '->'.join(result[:-3])
+
 class Log:
     log_output_level = LogOut.console
     output_file: TextIO
@@ -40,31 +54,31 @@ class Log:
             output_file_path = datetime.datetime.now().strftime("%d.%m.%Y.%H.%M.log")
             self.output_file = open(output_file_path, 'w')
 
-        self.log("Logger started! ", MsgType.info)
+        self.log("Logger started! ", MsgType.info, 'Logger')
 
     def destructor(self):
-        self.log("Logger closed", MsgType.info)
+        self.log("Logger closed", MsgType.info, 'Logger')
         if int(self.log_output_level) % 2 == 0:
             self.output_file.close()
 
-    def log(self, msg, msg_type: MsgType):
+    def log(self, msg, msg_type: MsgType, module_name: str):
         if self.log_output_level % 2 == 0:
-            self.log_file(msg, msg_type)
+            self.log_file(msg, msg_type, module_name)
         if self.log_output_level >= 1:
-            self.log_console(msg, msg_type)
+            self.log_console(msg, msg_type, module_name)
 
-    def log_file(self, msg, msg_type: MsgType):
+    def log_file(self, msg, msg_type: MsgType, module_name: str):
         formatted_date = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-        output = (f"[{formatted_date}]\t d'{inspect.stack()[0][3]}' \t"
-                  f"m'{inspect.stack()[1][3]}' \t[{str(msg_type)}] ")
+        output = (f"[{formatted_date}]\t d'{get_traceback()}' \t"
+                  f"m'{module_name}' \t[{str(msg_type)}] ")
 
         self.output_file.write(output + msg + '\n')
 
     @staticmethod
-    def log_console(msg, msg_type: MsgType):
+    def log_console(msg, msg_type: MsgType, module_name: str):
         formatted_date = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-        output = (f"{MsgTypeColor.green}[{formatted_date}]\t {MsgTypeColor.blue}d'{inspect.stack()[0][3]}' \t"
-                  f"{MsgTypeColor.magenta}m'{inspect.stack()[1][3]}' \t{MsgTypeColor.cyan}[{str(msg_type)}] ")
+        output = (f"{MsgTypeColor.green}[{formatted_date}]\t {MsgTypeColor.blue}d'{get_traceback()}' \t"
+                  f"{MsgTypeColor.magenta}m'{module_name}' \t{MsgTypeColor.cyan}[{str(msg_type)}] ")
 
         msg_color: str = ""
 
@@ -80,4 +94,4 @@ class Log:
         print(output + msg_color + msg + MsgTypeColor.reset)
 
 
-logger = Log(LogOut.console_and_file)
+logger = Log(LogOut.console)
