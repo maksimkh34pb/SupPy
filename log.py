@@ -44,7 +44,7 @@ def get_traceback():
 
     result = '->'.join(result[:-3])
     if len(result) > 47:
-        result = '...' + result[47:]
+        result = '...' + result[-47:]
 
     return result
 

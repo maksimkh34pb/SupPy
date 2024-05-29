@@ -3,6 +3,8 @@ import enum
 import time
 
 import telegram.ext
+
+import external_services
 import log
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler
@@ -26,16 +28,21 @@ class CallbackDatas(enum.Enum):
 
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if BotStatus.incoming_msg_type == IncomingMessageTypes.NewMessageToSupport:
+        external_services.send_to_support(update.message.text)
         await update.message.reply_text(text='Ваше сообщение передано поддержке. ')
         BotStatus.incoming_msg_type = IncomingMessageTypes.NotWaiting
         BotStatus.incoming_msg = None
+        return
     if BotStatus.incoming_msg_type == IncomingMessageTypes.CallUserBack:
+        external_services.call_user_back_request(update.message.text)
         await update.message.reply_text(text='Звонок заказан! ')
         BotStatus.incoming_msg_type = IncomingMessageTypes.NotWaiting
         BotStatus.incoming_msg = None
+        return
     if BotStatus.incoming_msg_type == IncomingMessageTypes.NotWaiting:
         log.logger.log('Got new text message: ' + update.message.text, log.MsgType.warn, 'bot')
         await update.message.reply_text('Главное меню: /start')
+        return
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
