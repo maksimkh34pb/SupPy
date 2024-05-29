@@ -1,20 +1,24 @@
-import asyncio
 import os
-
-import telegram
-
+import asyncio
 from dotenv import load_dotenv
+from telegram.ext import ApplicationBuilder, CommandHandler
+
+import bot
+import log
 
 
-async def main():
+def main():
+    # Load env vars
+
     dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
     if os.path.exists(dotenv_path):
         load_dotenv(dotenv_path)
 
-    bot = telegram.Bot(os.environ.get('BOT_TOKEN'))
-    async with bot:
-        print(await bot.get_me())
+    # init bot
+
+    bot.init(os.environ.get("BOT_TOKEN"))
+    log.logger.destructor()     # destroy logger after bot polling
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
