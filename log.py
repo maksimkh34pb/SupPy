@@ -1,6 +1,5 @@
 import datetime
 import enum
-import inspect
 import traceback
 from typing import TextIO
 
@@ -13,21 +12,22 @@ class LogOut(enum.IntEnum):
 
 class MsgType(enum.Enum):
     info = 0,
-    warn = 1,
-    err = 2,
-    critical = 3
+    success = 1
+    warn = 2,
+    err = 3,
+    critical = 4
 
 
 class MsgTypeColor:
     info = '\033[94m'
     warn = '\033[93m'
+    success = '\033[32m'
     err = '\033[31m'
     critical = '\033[91m'
     reset = '\033[0m'
     blue = '\033[34m'
     magenta = '\033[35m'
     cyan = '\033[36m'
-    green = '\033[32m'
 
 
 def get_traceback():
@@ -41,7 +41,13 @@ def get_traceback():
 
     for line in lines:
         result.append(line.split('\n  ')[0].split('in ')[-1])
-    return '->'.join(result[:-3])
+
+    result = '->'.join(result[:-3])
+    if len(result) > 47:
+        result = '...' + result[47:]
+
+    return result
+
 
 class Log:
     log_output_level = LogOut.console
@@ -54,10 +60,10 @@ class Log:
             output_file_path = datetime.datetime.now().strftime("%d.%m.%Y.%H.%M.log")
             self.output_file = open(output_file_path, 'w')
 
-        self.log("Logger started! ", MsgType.info, 'Logger')
+        self.log("Logger started! ", MsgType.success, 'Logger')
 
     def destructor(self):
-        self.log("Logger closed", MsgType.info, 'Logger')
+        self.log("Logger closed", MsgType.success, 'Logger')
         if int(self.log_output_level) % 2 == 0:
             self.output_file.close()
 
@@ -77,13 +83,15 @@ class Log:
     @staticmethod
     def log_console(msg, msg_type: MsgType, module_name: str):
         formatted_date = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-        output = (f"{MsgTypeColor.green}[{formatted_date}]\t {MsgTypeColor.blue}d'{get_traceback()}' \t"
+        output = (f"{MsgTypeColor.success}[{formatted_date}]\t {MsgTypeColor.blue}d'{get_traceback()}' \t"
                   f"{MsgTypeColor.magenta}m'{module_name}' \t{MsgTypeColor.cyan}[{str(msg_type)}] ")
 
         msg_color: str = ""
 
         if msg_type == MsgType.info:
             msg_color = MsgTypeColor.info
+        if msg_type == MsgType.success:
+            msg_color = MsgTypeColor.success
         if msg_type == MsgType.warn:
             msg_color = MsgTypeColor.warn
         if msg_type == MsgType.err:

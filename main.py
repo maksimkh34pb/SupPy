@@ -1,7 +1,5 @@
 import os
-import asyncio
 from dotenv import load_dotenv
-from telegram.ext import ApplicationBuilder, CommandHandler
 
 import bot
 import log
