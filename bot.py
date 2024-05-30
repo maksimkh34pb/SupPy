@@ -1,14 +1,13 @@
-import asyncio
 import enum
-import time
-
 import telegram.ext
-
 import external_services
 import log
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler
 
+
+# bot classes
 
 class IncomingMessageTypes(enum.Enum):
     NotWaiting = 0
@@ -21,9 +20,12 @@ class BotStatus:
     incoming_msg = None
 
 
-class CallbackDatas(enum.Enum):
+class CallbackData(enum.Enum):
     start__support = 'start__support'
     start__get_call = 'start__get_call'
+
+
+# bot handlers
 
 
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -47,12 +49,13 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("Написать в поддержку", callback_data=CallbackDatas.start__support.value)],
-        [InlineKeyboardButton("Забронировать обратный звонок", callback_data=CallbackDatas.start__get_call.value)],
+        [InlineKeyboardButton("Написать в поддержку", callback_data=CallbackData.start__support.value)],
+        [InlineKeyboardButton("Забронировать обратный звонок", callback_data=CallbackData.start__get_call.value)],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    log.logger.log(f'User {update.effective_chat.username}:{update.effective_chat.id} started bot! ', log.MsgType.info, 'bot')
+    log.logger.log(f'User {update.effective_chat.username}:{update.effective_chat.id} started bot! ',
+                   log.MsgType.info, 'bot')
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Этот бот передаст ваши сообщения поддержке!",
                                    reply_markup=reply_markup)
 
@@ -61,12 +64,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     query = update.callback_query
     await query.answer()
 
-    if query.data == CallbackDatas.start__support.value:
+    if query.data == CallbackData.start__support.value:
         await query.edit_message_text(text=f"Напишите свое сообщение поддержке: ")
         BotStatus.incoming_msg_type = IncomingMessageTypes.NewMessageToSupport
-    if query.data == CallbackDatas.start__get_call.value:
+    if query.data == CallbackData.start__get_call.value:
         await query.edit_message_text(text=f"Укажите свой телефон для обратного звонка: ")
         BotStatus.incoming_msg_type = IncomingMessageTypes.CallUserBack
+
+# functional
 
 
 def init(token):
