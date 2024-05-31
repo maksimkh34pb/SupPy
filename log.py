@@ -60,7 +60,7 @@ class Log:
             output_file_path = datetime.datetime.now().strftime("%d.%m.%Y.%H.%M.log")
             self.output_file = open(output_file_path, 'w')
 
-        self.log("Logger started! ", MsgType.success, 'Logger')
+        self.log("Logger started! \n", MsgType.success, 'Logger')
 
     def destructor(self):
         self.log("Logger closed", MsgType.success, 'Logger')

@@ -25,26 +25,26 @@ class User:
         persistence.save(self)
 
     @staticmethod
-    def user_registered(uid: int):
+    async def user_registered(uid: int):
         for _user in user_db:
             if _user.user.id == uid:
                 return True
         return False
 
     @staticmethod
-    def get_admin():
+    async def get_admin():
         for current_user in user_db:
             if current_user.level == AccountLevel.Admin:
                 return current_user
 
     @staticmethod
-    def get_by_id(uid: int):
+    async def get_by_id(uid: int):
         for _user in user_db:
             if _user.user.id == uid:
                 return _user
 
     @staticmethod
-    def get_role(uid: int) -> AccountLevel:
+    async def get_role(uid: int) -> AccountLevel:
         for _user in user_db:
             if _user.user.id == uid:
                 return _user.level
