@@ -30,6 +30,12 @@ class CallbackData(enum.Enum):
     start__support = 'start__support'
     start__get_call = 'start__get_call'
 
+    start_adm__show_messages = 'start_adm__show_messages:'
+    start_adm__close_ticket = 'start_adm__close_ticket:'
+    start_adm__reply = 'start_adm__reply:'
+
+    start_adm__remove_call_request = 'start_adm__remove_call_request'
+
     register__user = 'register__user'
     register__admin = 'register__admin'
 
@@ -62,7 +68,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if BotStatus.incoming_msg_type == IncomingMessageTypes.NotWaiting:
-        log.logger.log('Got new text message: ' + update.message.text, log.MsgType.warn, 'bot')
+        log.logger.log('Got new unrecognized message: ' + update.message.text, log.MsgType.warn, 'bot')
         await update.message.reply_text('Главное меню: /start')
         return
 
@@ -81,6 +87,8 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text='Комана не распознана! ')
+    log.logger.log('Got new unrecognized command: ' + update.message.text, log.MsgType.warn, 'bot')
+    log.logger.log('Author: ' + str(update.effective_user.id), log.MsgType.warn, 'bot')
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -126,12 +134,46 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if ticket is None:
             await update.effective_chat.send_message('Обращение не найдено. ')
         await ticket.close(True)
+        return
 
     if query.data == CallbackData.ticket__usr_close.value:
         ticket = await support_ticket.get_by_invoker(query.from_user.id)
         if ticket is None:
             await update.effective_chat.send_message('Обращение не найдено. ')
         await ticket.close(False)
+        return
+
+    if query.data == CallbackData.start_adm__remove_call_request.value:
+        removed = support_ticket.call_requests[0]
+        support_ticket.call_requests.remove(removed)
+        await update.effective_chat.send_message(removed + ' был удален из списка. ')
+        return
+
+    if query.data.startswith('start_adm__show_messages'):
+        ticket = await support_ticket.get_by_id(int(query.data.split(':')[1]))
+        if ticket is None:
+            await update.effective_chat.send_message('Обращение не найдено. ')
+        for msg in ticket.messages:
+            msg_admin = 'Сообщение от ' + ('администратора' if msg.sender.tg_user.id == update.effective_user.id
+                                           else 'пользователя')
+            msg_admin += '\n'
+            msg_admin += 'Время отправки: ' + msg.datetime + '\n\n'
+            msg_admin += msg.text
+            await update.effective_chat.send_message(msg_admin)
+            await update.effective_chat.send_message('Конец диалога. ')
+
+        return
+
+    if query.data.startswith('start_adm__close_ticket'):
+        ticket = await support_ticket.get_by_id(int(query.data.split(':')[1]))
+        if ticket is None:
+            await update.effective_chat.send_message('Обращение не найдено. ')
+        await ticket.close(True)
+
+    if query.data.startswith('start_adm__reply'):
+        await query.edit_message_text(text=f"Введите ответ пользователю: ")
+        BotStatus.incoming_msg_type = IncomingMessageTypes.AdminToUserReply
+        return
 
 
 # endregion
@@ -152,18 +194,71 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        log.logger.log(f'User {update.effective_chat.username}:{update.effective_chat.id} started bot! ',
-                       log.MsgType.info, 'bot')
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text="Этот бот передаст ваши сообщения поддержке!",
                                        reply_markup=reply_markup)
     elif role == user.AccountLevel.Admin:
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text="Новых обращений нет! ")
+        tickets = await support_ticket.get_admin_tickets(update.effective_user.id)
+
+        msg_call = '\n\nОжидают звонка: \n\n'
+
+        keyboard = [
+            [InlineKeyboardButton("Отметить следующий вызов",
+                                  callback_data=CallbackData.start_adm__remove_call_request.value)]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        for number in support_ticket.call_requests:
+            msg_call += number + '\n'
+        if msg_call == '\n\nОжидают звонка: \n\n':
+            msg_call += 'Нет.'
+            reply_markup = InlineKeyboardMarkup([])
+
+        await update.effective_chat.send_message(text=msg_call, reply_markup=reply_markup)
+
+        if len(tickets) == 0:
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text="Открытых обращений нет! ")
+            return
+
+        for ticket in tickets:
+            if ticket.messages is []:
+                await update.effective_chat.send_message(text='История сообщений не сохранилась. ')
+                return
+
+            msg = "Обращение " + str(ticket.ticket_id) + ":\n\n"
+            msg += "Статус:\t"
+
+            keyboard = [
+                [InlineKeyboardButton("Показать сообщения",
+                                      callback_data=CallbackData.start_adm__show_messages.value +
+                                      str(ticket.ticket_id))],
+                [InlineKeyboardButton("Закрыть обращение",
+                                      callback_data=CallbackData.start_adm__close_ticket.value +
+                                      str(ticket.ticket_id))]
+            ]
+
+            try:
+                if ticket.messages[-1].sender.tg_user.id == update.effective_user.id:
+                    msg += "Ожидается ответ пользователя..."
+                else:
+                    msg += "Ожидается ответ администратора... "
+                    keyboard.append([InlineKeyboardButton("Ответить",
+                                                          callback_data=CallbackData.start_adm__reply.value +
+                                                          str(ticket.ticket_id))])
+            except IndexError:
+                msg += "Неизвестно. "
+                keyboard.append([InlineKeyboardButton("Ответить",
+                                                      callback_data=CallbackData.start_adm__reply.value +
+                                                      str(ticket.ticket_id))])
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await update.effective_chat.send_message(text=msg, reply_markup=reply_markup)
 
 
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if user.User.user_registered(update.effective_user.id):
+    if await user.User.user_registered(update.effective_user.id):
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text="Вы уже зарегистрированы! ")
         return
@@ -200,7 +295,7 @@ def init(token):
     global global_bot
     global_bot = application.bot
 
-    log.logger.log("\nBot starting... \n", log.MsgType.success, 'Bot')
+    log.logger.log("Bot starting... \n", log.MsgType.success, 'Bot', '\n')
     try:
         application.run_polling()
     except telegram.error.NetworkError:

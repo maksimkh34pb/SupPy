@@ -63,27 +63,27 @@ class Log:
         self.log("Logger started! \n", MsgType.success, 'Logger')
 
     def destructor(self):
-        self.log("Logger closed", MsgType.success, 'Logger')
+        self.log("Logger closed", MsgType.success, 'Logger', '\n')
         if int(self.log_output_level) % 2 == 0:
             self.output_file.close()
 
-    def log(self, msg, msg_type: MsgType, module_name: str):
+    def log(self, msg, msg_type: MsgType, module_name: str, prefix: str = ''):
         if self.log_output_level % 2 == 0:
-            self.log_file(msg, msg_type, module_name)
+            self.log_file(msg, msg_type, module_name, prefix)
         if self.log_output_level >= 1:
-            self.log_console(msg, msg_type, module_name)
+            self.log_console(msg, msg_type, module_name, prefix)
 
-    def log_file(self, msg, msg_type: MsgType, module_name: str):
+    def log_file(self, msg, msg_type: MsgType, module_name: str, prefix: str = ''):
         formatted_date = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-        output = (f"[{formatted_date}]\t d'{get_traceback()}' \t"
+        output = (prefix + f"[{formatted_date}]\t d'{get_traceback()}' \t"
                   f"m'{module_name}' \t[{str(msg_type)}] ")
 
         self.output_file.write(output + msg + '\n')
 
     @staticmethod
-    def log_console(msg, msg_type: MsgType, module_name: str):
+    def log_console(msg, msg_type: MsgType, module_name: str, prefix: str = ''):
         formatted_date = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-        output = (f"{MsgTypeColor.success}[{formatted_date}]\t {MsgTypeColor.blue}d'{get_traceback()}' \t"
+        output = (prefix + f"{MsgTypeColor.success}[{formatted_date}]\t {MsgTypeColor.blue}d'{get_traceback()}' \t"
                   f"{MsgTypeColor.magenta}m'{module_name}' \t{MsgTypeColor.cyan}[{str(msg_type)}] ")
 
         msg_color: str = ""

@@ -14,20 +14,20 @@ class AccountLevel(enum.Enum):
 class User:
     chat_id = -1
     level = AccountLevel.User
-    user: telegram.User
+    tg_user: telegram.User
 
     def __init__(self, chat_id: int, level: AccountLevel, user: telegram.User):
         self.chat_id = chat_id
         self.level = level
-        self.user = user
-        log.logger.log("Новый пользователь создан: " + str(user.id) + ", " + str(level), log.MsgType.info, 'user')
+        self.tg_user = user
+        log.logger.log("New user registered: " + str(user.id) + ", " + str(level), log.MsgType.info, 'user')
         user_db.append(self)
-        persistence.save(self)
+        persistence.append(self)
 
     @staticmethod
     async def user_registered(uid: int):
         for _user in user_db:
-            if _user.user.id == uid:
+            if _user.tg_user.id == uid:
                 return True
         return False
 
@@ -40,13 +40,13 @@ class User:
     @staticmethod
     async def get_by_id(uid: int):
         for _user in user_db:
-            if _user.user.id == uid:
+            if _user.tg_user.id == uid:
                 return _user
 
     @staticmethod
     async def get_role(uid: int) -> AccountLevel:
         for _user in user_db:
-            if _user.user.id == uid:
+            if _user.tg_user.id == uid:
                 return _user.level
 
 
